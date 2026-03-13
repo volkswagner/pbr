@@ -8,6 +8,10 @@ frappe.ui.form.on("Sales Invoice", {
          }, ss_parent_button);
 
          frm.add_custom_button(__("Fetch Tracking & Amount"), function (){
+            frm.events.fetch_shipstation_shipment_info(frm, 1);
+         }, ss_parent_button);
+
+         frm.add_custom_button(__("Fetch Tracking Only"), function (){
             frm.events.fetch_shipstation_shipment_info(frm);
          }, ss_parent_button);
       }
@@ -212,13 +216,14 @@ frappe.ui.form.on("Sales Invoice", {
    },
 
 
-	fetch_shipstation_shipment_info(frm) {
+	fetch_shipstation_shipment_info(frm, with_shipment_cost=0) {
     	frappe.call({
         	method: "pbr.ss.api.fetch_shipstation_shipment_info",
         	freeze: true,
-        	freeze_message: __("Fetching Tracking and Amount"),
+        	freeze_message: with_shipment_cost? __("Fetching Tracking and Amount") : __("Fetching Tracking Only"),
         	args: {
-            	invoice_name: frm.doc.name
+            	invoice_name: frm.doc.name,
+               with_shipment_cost: with_shipment_cost
         	},
         	callback: function(r) { // Added 'r' here to access the response
             	if (r.message) {
@@ -227,7 +232,7 @@ frappe.ui.form.on("Sales Invoice", {
 
                 	// 2. Visual feedback
                 	frappe.show_alert({
-                    	message: __("Tracking and Shipping Charges updated from ShipStation"), 
+                    	message: with_shipment_cost? __("Tracking and Shipping Charges updated from ShipStation") : __("Tracking updated from ShipStation"), 
                     	indicator: 'green'
                 	});
 

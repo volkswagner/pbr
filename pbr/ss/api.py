@@ -115,75 +115,82 @@ def create_shipstation_order(order_details, order_date):
    )
 
 @frappe.whitelist()
-def fetch_shipstation_shipment_info(invoice_name):
-    frappe.msgprint(_("Starting Fetch for {0}...").format(invoice_name))
-    
-    headers = generate_headers()
-    url = "https://ssapi.shipstation.com/shipments"
-    params = {"orderNumber": invoice_name}
+def fetch_shipstation_shipment_info(invoice_name, with_shipment_cost=0):
+   frappe.msgprint(_("Starting Fetch for {0}...").format(invoice_name))
+   
+   headers = generate_headers()
+   url = "https://ssapi.shipstation.com/shipments"
+   params = {"orderNumber": invoice_name}
 
-    try:
-        response = requests.get(url, headers=headers, params=params, timeout=10)
-        response.raise_for_status()
-        shipment_data = response.json()
-    except Exception as e:
-        frappe.log_error(frappe.get_traceback(), _("ShipStation API Connection Error"))
-        frappe.throw(_("ShipStation Connection Failed: {0}").format(str(e)))
+   try:
+      response = requests.get(url, headers=headers, params=params, timeout=10)
+      response.raise_for_status()
+      shipment_data = response.json()
+   except Exception as e:
+      frappe.log_error(frappe.get_traceback(), _("ShipStation API Connection Error"))
+      frappe.throw(_("ShipStation Connection Failed: {0}").format(str(e)))
 
-    shipments = shipment_data.get("shipments", [])
-    
-    if not shipments:
-        frappe.msgprint(_("No shipments found in ShipStation for this order number."))
-        return {"status": "no_data"}
+   shipments = shipment_data.get("shipments", [])
+   
+   if not shipments:
+      frappe.msgprint(_("No shipments found in ShipStation for this order number."))
+      return {"status": "no_data"}
 
-    # --- THE COST AGGREGATION LOGIC ---
-    latest = shipments[0]
-    tracking_number = latest.get("trackingNumber")
-    
-    # Get postage and insurance, defaulting to 0.0 if they are None
-    postage_cost = frappe.utils.flt(latest.get("shipmentCost", 0))
-    insurance_cost = frappe.utils.flt(latest.get("insuranceCost", 0))
-    
-    # Combine them to match the "Label Cost" seen in the ShipStation UI
-    raw_total_cost = postage_cost + insurance_cost
-    
-    # Add your $3.00 markup
-    markup = 3.00
-    final_charge = raw_total_cost + markup
+   # --- THE COST AGGREGATION LOGIC ---
+   latest = shipments[0]
+   tracking_number = latest.get("trackingNumber")
 
-    # --- UPDATE ERPNEXT DOCUMENT ---
-    doc = frappe.get_doc("Sales Invoice", invoice_name)
-    doc.tracking_num = tracking_number
-    
-    shipping_account = "Shipping and Handling - TPR"
-    found = False
-    for row in doc.taxes:
-        if shipping_account in row.account_head:
-            row.tax_amount = final_charge
-            row.base_tax_amount = final_charge
-            found = True
-    
-    if not found:
-        doc.append("taxes", {
-            "charge_type": "Actual",
-            "account_head": shipping_account,
-            "description": "Shipping & Handling (ShipStation Total + $3.00)",
-            "tax_amount": final_charge
-        })
+   doc = frappe.get_doc("Sales Invoice", invoice_name)
+   doc.tracking_num = tracking_number
 
-    doc.save(ignore_permissions=True)
-    frappe.db.commit()
-    
-    # --- SUCCESS MESSAGE WITH BREAKDOWN ---
-    msg = _(
-        "<b>Successfully Updated!</b><br><br>"
-        "<b>Tracking:</b> {0}<br>"
-        "<b>Postage:</b> ${1:,.2f}<br>"
-        "<b>Insurance:</b> ${2:,.2f}<br>"
-        "<b>Handling:</b> ${3:,.2f}<br>"
-        "<b>S & H  Total:</b> ${4:,.2f}"
-    ).format(tracking_number, postage_cost, insurance_cost, markup, final_charge)
-    
-    frappe.msgprint(msg)
-    
-    return {"status": "success", "tracking": tracking_number}
+   if with_shipment_cost == 1:
+      # Get postage and insurance, defaulting to 0.0 if they are None
+      postage_cost = frappe.utils.flt(latest.get("shipmentCost", 0))
+      insurance_cost = frappe.utils.flt(latest.get("insuranceCost", 0))
+      
+      # Combine them to match the "Label Cost" seen in the ShipStation UI
+      raw_total_cost = postage_cost + insurance_cost
+      
+      # Add your $3.00 markup
+      markup = 3.00
+      final_charge = raw_total_cost + markup
+
+      # --- UPDATE ERPNEXT DOCUMENT ---
+      
+      shipping_account = "Shipping and Handling - TPR"
+      found = False
+      for row in doc.taxes:
+         if shipping_account in row.account_head:
+               row.tax_amount = final_charge
+               row.base_tax_amount = final_charge
+               found = True
+      
+      if not found:
+         doc.append("taxes", {
+               "charge_type": "Actual",
+               "account_head": shipping_account,
+               "description": "Shipping & Handling (ShipStation Total + $3.00)",
+               "tax_amount": final_charge
+         })
+
+   doc.save(ignore_permissions=True)
+   frappe.db.commit()
+   
+   # --- SUCCESS MESSAGE WITH BREAKDOWN ---
+   msg = _(
+      "<b>Successfully Updated!</b><br><br>"
+      "<b>Tracking:</b> {0}<br>"
+   ).format(tracking_number)
+
+   if with_shipment_cost == 1:
+      msg = msg + _(
+         "<b>Postage:</b> ${0:,.2f}<br>"
+         "<b>Insurance:</b> ${1:,.2f}<br>"
+         "<b>Handling:</b> ${2:,.2f}<br>"
+         "<b>S & H  Total:</b> ${3:,.2f}"
+      ).format(postage_cost or 0, insurance_cost or 0, markup or 0, final_charge or 0)
+
+   
+   frappe.msgprint(msg)
+   
+   return {"status": "success", "tracking": tracking_number}
