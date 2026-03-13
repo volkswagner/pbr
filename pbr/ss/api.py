@@ -116,6 +116,7 @@ def create_shipstation_order(order_details, order_date):
 
 @frappe.whitelist()
 def fetch_shipstation_shipment_info(invoice_name, with_shipment_cost=0):
+   with_shipment_cost = int(with_shipment_cost)
    frappe.msgprint(_("Starting Fetch for {0}...").format(invoice_name))
    
    headers = generate_headers()
