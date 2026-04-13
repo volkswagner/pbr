@@ -186,7 +186,7 @@ frappe.ui.form.on("Sales Invoice", {
                         fieldname: "value",
                         fieldtype: "Currency",
                         read_only: 1,
-                        default: frm.doc.grand_total
+                        default: frm.doc.total
                      },
                      {
                         label: __("Tariff Code"),

@@ -248,18 +248,3 @@ doctype_js = {
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-
-fixtures = [
-    {
-        "doctype": "Client Script",
-        "filters": [
-            ["module", "=", "SS"]
-        ]
-    },
-    {
-        "doctype": "Server Script",
-        "filters": [
-            ["module", "=", "SS"]
-        ]
-    }
-]
