@@ -101,7 +101,6 @@ def create_shipstation_order(order_details, order_date):
          ]
       }
 
-   frappe.throw(str(payload))
    try:
       requests.post("https://ssapi.shipstation.com/orders/createorder", headers=headers, json=payload)
    except Exception as e:
