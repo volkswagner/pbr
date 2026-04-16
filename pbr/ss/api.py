@@ -67,6 +67,7 @@ def create_shipstation_order(order_details, order_date):
       "orderKey": order_details.get("orderNumber"),
       "orderDate": order_date,
       "orderStatus": "awaiting_shipment",
+      "customerEmail": order_details.get("email"),
       "shipTo": {
          "name": order_details.get("name"),
          "street1": order_details.get("street1"),
@@ -80,7 +81,8 @@ def create_shipstation_order(order_details, order_date):
          "email": order_details.get("email")
       },
       "billTo": {
-         "name": order_details.get("name")
+         "name": order_details.get("name"),
+         "email": order_details.get("email")
       },
       "items": [{"name": "Invoice Items", "quantity": 1}]
    }
@@ -99,7 +101,7 @@ def create_shipstation_order(order_details, order_date):
          ]
       }
 
-   # frappe.throw(str(payload))
+   frappe.throw(str(payload))
    try:
       requests.post("https://ssapi.shipstation.com/orders/createorder", headers=headers, json=payload)
    except Exception as e:
